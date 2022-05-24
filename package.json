@@ -5,17 +5,41 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
-    "lint": "vue-cli-service lint"
+    "lint": "vue-cli-service lint",
+    "electron:build": "vue-cli-service electron:build",
+    "electron:serve": "vue-cli-service electron:serve",
+    "postinstall": "electron-builder install-app-deps",
+    "postuninstall": "electron-builder install-app-deps"
   },
+  "main": "background.js",
   "dependencies": {
+    "@electron/remote": "^2.0.8",
+    "axios": "^0.27.2",
+    "compression-webpack-plugin": "1.1.11",
     "core-js": "^3.6.5",
-    "vue": "^2.6.11"
+    "css-loader": "^5.2.4",
+    "echarts": "^5.3.2",
+    "electorn": "^0.0.1-security",
+    "element-ui": "^2.15.8",
+    "file-loader": "3.0.1",
+    "html-webpack-plugin": "3.2.0",
+    "node-sass": "4.14.1",
+    "sass-loader": "7.3.1",
+    "style-loader": "^2.0.0",
+    "terser-webpack-plugin": "^1.4.5",
+    "vue": "^2.6.11",
+    "vue-cli-plugin-electron-builder": "~2.1.1",
+    "vue-router": "3.2.0",
+    "webpack": "4.29.6",
+    "webpack-cli": "3.3.0"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "~4.5.4",
     "@vue/cli-plugin-eslint": "~4.5.4",
     "@vue/cli-service": "~4.5.4",
     "babel-eslint": "^10.1.0",
+    "electron": "^13.0.0",
+    "electron-devtools-installer": "^3.1.0",
     "eslint": "^6.7.2",
     "eslint-plugin-vue": "^6.2.2",
     "vue-template-compiler": "^2.6.11"
