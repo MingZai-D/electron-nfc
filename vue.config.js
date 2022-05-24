@@ -8,10 +8,10 @@ module.exports = {
         "directories": {
           "output": "./dist_electron" //输出文件路径
         },
-        // "extraResources": { // 拷贝dll等静态文件到指定位置
-        //   "from": "./NodeMapping",
-        //   "to": "./"
-        // },
+        "extraResources": { // 拷贝dll等静态文件到指定位置
+          "from": "./NodeMapping",
+          "to": "../NodeMapping"
+        },
         "nsis": { //nsis安装器配置
           "oneClick": false, // 是否需要点击安装，自动更新需要关掉
           "allowToChangeInstallationDirectory":true, //是否能够选择安装路径
