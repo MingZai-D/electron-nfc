@@ -2,14 +2,13 @@
   <div class="sider-bar-page">
     <el-menu router :default-active="$route.path">
       <el-menu-item
-        v-for="(menuItem, idx) in itemArr"
+        v-for="(menuItem) in itemArr"
         :key="menuItem.path"
         :index="menuItem.path"
-        @click="handleClick(idx)"
         :class="[menuItem.hidden ? 'hidden' : '']"
       >
         {{ menuItem.name }}
-        <i class="el-icon-d-arrow-right" v-show="idx == activeIdx"></i>
+        <i class="el-icon-d-arrow-right" v-show="menuItem.path == $route.path"></i>
       </el-menu-item>
     </el-menu>
   </div>
@@ -22,12 +21,7 @@ export default {
     return {
       activeIdx: 0,
     };
-  },
-  methods: {
-    handleClick(idx) {
-      this.activeIdx = idx;
-    },
-  },
+  }
 };
 </script>
 

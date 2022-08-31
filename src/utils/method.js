@@ -68,6 +68,7 @@ export const hex2int = function (hex) {
 // 10进制转16进制
 
 export const int2hex = function (num, width) {
+  if(num < 0) return
   var hex = "0123456789ABCDEF";
   var s = "";
   while (num) {

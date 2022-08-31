@@ -1,8 +1,7 @@
 <template>
   <div class="main-header">
     <div class="main-logo">
-      <img src="@/assets/logo.png" alt="Ledvance logo"/>
-      Ledvance NFC Reader
+      <img src="@/assets/NFC_logo.png" alt="Ledvance logo"/>
     </div>
     <div class="main-operation">
       <i class="el-icon-minus" title="最小化" @click="setWinSize('window-min')"/>
@@ -17,7 +16,6 @@ const {ipcRenderer} = window.require("electron");
 export default {
   methods:{
     setWinSize(type){
-      console.log(type,'type')
       ipcRenderer.send(type);
     }
   }

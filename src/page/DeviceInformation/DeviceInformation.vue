@@ -51,13 +51,15 @@ export default {
           }
         }
       },
-      immediate: true
+      immediate: true,
+      deep: true
     },
     isLink: {
       handler(val) {
         this.isLink = val
       },
-      immediate: true
+      immediate: true,
+      deep: true
     }
   },
   updated() {

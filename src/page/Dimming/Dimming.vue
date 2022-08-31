@@ -4,15 +4,18 @@
     <div class="page-container">
       <div class="setting-container">
         <div class="setting-content">
-          <div :class="['setting-title', !enable['diming'] ? 'ban-click' : '']" @click="changeBox('diming')">
-            <img src="@/assets/images/icon_select.png" v-if="info.diming" />
-            <span class="circle" v-else />
-            Dimming
+          <div style="display: inline-block">
+            <div :class="['setting-title', !enable['diming'] ? 'ban-click' : '']" @click="changeBox('diming')">
+              <img src="@/assets/images/icon_select.png" v-if="info.diming" />
+              <span class="circle" v-else />
+              Dimming
+            </div>
           </div>
           <el-form label-width="120px" ref="formRef" :model="info" :rules="rules">
             <el-form-item label="Dimming Level" prop="diminglevel">
-              <el-input v-model="info.diminglevel" type="number" :disabled="!enable['diming'] ? !enable['diming'] : !info.diming"
-                @input="checkInput('diminglevel')" @blur="onBlur($event,'diminglevel')">
+              <el-input v-model="info.diminglevel" type="number"
+                :disabled="!enable['diming'] ? !enable['diming'] : !info.diming" @input="checkInput('diminglevel')"
+                @blur="onBlur($event, 'diminglevel')">
                 <span slot="suffix">%</span>
               </el-input>
             </el-form-item>
@@ -30,10 +33,9 @@
 import PageHeader from "@/components/PageHeader.vue"
 import LineEchartsVue from "@/components/LineEcharts.vue"
 import { EventBus } from "@/utils/eventBus.js"
-import { hex2int } from "../../utils/method"
-import { int2hex } from "../../utils/method"
+import { hex2int, int2hex } from "../../utils/method"
 export default {
-  props: ['nfcInfo', 'enable'],
+  props: ['nfcInfo', 'enable', 'readTag'],
   components: {
     PageHeader,
     LineEchartsVue
@@ -43,15 +45,12 @@ export default {
       let text = ''
       switch (type) {
         case 'diminglevel':
-          text = '范围为0~100'
+          text = '1~100'
           break;
         default:
           return ''
       }
-      if (!value && value !== 0) {
-        return callback(new Error('请输入值'));
-      }
-      if (value < 0 || value > 100) {
+      if (value < 1 || value > 100 || !value) {
         callback(new Error(text));
       } else {
         callback();
@@ -60,8 +59,8 @@ export default {
     return {
       config: {
         id: 'dimingMain',
-        title: '',
-        subtext: 'Output(%) vs 0-10V level',
+        title: 'Dimming Curve',
+        subtext: 'Output(%) vs Dimming Input(V)',
         areaOpacity: 0,
         yData: [100, 100, 100, 100],
         xData: [0, 1, 9, 10]
@@ -85,23 +84,21 @@ export default {
         })
       },
       deep: true
+    },
+    readTag() {
+      this.initInfo(this.nfcInfo)
     }
   },
-  updated() {
-    EventBus.$off('constantLumenInit')
-    EventBus.$once('constantLumenInit', (data) => {
-      this.initInfo(data)
-    })
-  },
-  mounted() {
-    EventBus.$off('constantLumenInit')
-    EventBus.$once('constantLumenInit', (data) => {
-      this.initInfo(data)
-    })
+  activated() {
     this.initInfo(this.nfcInfo)
+    EventBus.$off('constantLumenInit')
+    EventBus.$once('constantLumenInit', (data) => {
+      this.initInfo(data)
+    })
   },
   methods: {
     inputChange(val) {
+      if (val.diminglevel < 0) return
       this.config.yData[0] = 100 * (val.diminglevel * 0.01)
       this.config.yData[1] = 100 * (val.diminglevel * 0.01)
       if (!Object.keys(this.nfcInfo).length) return
@@ -131,9 +128,12 @@ export default {
       this.inputChange(this.info)
       this.$refs['formRef'].validateField(type)
     },
-    onBlur(e,type){
-      if(e.target.value < 0 || e.target.value == '') this.info[type] = 0
-      if(e.target.value > 100) this.info[type] = 100
+    onBlur(e, type) {
+      let regex = /^[0]+/
+      const newValue = e.target.value.replace(regex, "");
+      this.info[type] = newValue
+      if (newValue < 1 || newValue == '') this.info[type] = 1
+      if (newValue > 100) this.info[type] = 100
       this.inputChange(this.info)
     }
   },
@@ -148,6 +148,7 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: auto;
+
   .page-container {
     flex: auto;
 

@@ -4,30 +4,34 @@
     <div class="page-container">
       <div class="setting-container">
         <div class="setting-content">
-          <div :class="['setting-title', !enable['thermalprotection'] ? 'ban-click' : '']"
+          <div style="display: inline-block">
+            <div :class="['setting-title', !enable['thermalprotection'] ? 'ban-click' : '']"
             @click="changeBox('thermalprotection')">
-            <img src="@/assets/images/icon_select.png" v-if="info.thermalprotection" />
-            <span class="circle" v-else />
-            Thermal Protection
+              <img src="@/assets/images/icon_select.png" v-if="info.thermalprotection" />
+              <span class="circle" v-else />
+              Thermal Protection
+            </div>
           </div>
-          <el-form label-width="120px" :rules="rules" :model="info" ref="formRef">
-            <el-form-item label="Derating Start" prop="deratingStart">
-              <el-input v-model="info.deratingStart" min="0" max="4294967295" type="number"
-                @input="checkInput('deratingStart')" :disabled="!enable['thermalprotection'] ? !enable['thermalprotection'] : info.thermalprotection"
+          <el-form label-width="120px" :model="info" ref="formRef">
+            <el-form-item label="Derating Start" prop="deratingStart" :rules="initRulers('deratingStart')">
+              <el-input v-model="info.deratingStart"  type="number"
+                @input="checkInput('deratingStart')"
+                :disabled="!enable['thermalprotection'] ? !enable['thermalprotection'] : !info.thermalprotection"
                 @blur="onBlur($event, 'deratingStart')">
                 <span slot="suffix">ohm</span>
               </el-input>
             </el-form-item>
-            <el-form-item label="Derating End" prop="deratingend">
-              <el-input v-model="info.deratingend" min="0" max="4294967295" type="number"
-                @input="checkInput('deratingend')" :disabled="!enable['thermalprotection'] ? !enable['thermalprotection'] : info.thermalprotection"
+            <el-form-item label="Derating End" prop="deratingend" :rules="initRulers('deratingend')">
+              <el-input v-model="info.deratingend" type="number" @input="checkInput('deratingend')"
+                :disabled="!enable['thermalprotection'] ? !enable['thermalprotection'] : !info.thermalprotection"
                 @blur="onBlur($event, 'deratingend')">
                 <span slot="suffix">ohm</span>
               </el-input>
             </el-form-item>
-            <el-form-item label="Min Output" prop="minoutput">
+            <el-form-item label="Min Output" prop="minoutput" :rules="initRulers('minoutput')">
               <el-input v-model="info.minoutput" type="number" @input="checkInput('minoutput')"
-                :disabled="!enable['thermalprotection'] ? !enable['thermalprotection'] : info.thermalprotection" @blur="onBlur($event, 'minoutput')">
+                :disabled="!enable['thermalprotection'] ? !enable['thermalprotection'] : !info.thermalprotection"
+                @blur="onBlur($event, 'minoutput')">
                 <span slot="suffix">%</span>
               </el-input>
             </el-form-item>
@@ -48,105 +52,62 @@ import { EventBus } from "@/utils/eventBus.js"
 import { hex2int } from "../../utils/method"
 import { int2hex } from "../../utils/method"
 export default {
-  props: ['nfcInfo', 'enable'],
+  props: ['nfcInfo', 'enable', 'readTag'],
   components: {
     PageHeader,
     LineEchartsVue
   },
   data() {
-    let checkRuler = (rule, value, callback, type) => {
-      let text = ''
-      let condition = ''
-      switch (type) {
-        case 'deratingStart':
-        case 'deratingend':
-          text = '范围为0~4294967295'
-          condition = value < 0 || value > 4294967295
-          break;
-        case 'minoutput':
-          text = "范围为0~100"
-          condition = value < 0 || value > 100
-          break;
-        default:
-          return ''
-      }
-      if (!value && value != 0) {
-        return callback(new Error('请输入值'));
-      }
-      if (condition) {
-        callback(new Error(text));
-      } else {
-        callback();
-      }
-    }
     return {
       config: {
         id: 'thermalMain',
         title: 'Derating Cruve',
-        subtext: 'Output(%) vs NFT Resistance(kΩ)',
+        subtext: 'Output(%) vs NTC Resistance(kΩ)',
         areaOpacity: 0,
         yData: [100, 100, 100, 100, 100, 100, 100],
         xData: []
       },
       info: {
-        deratingStart: 6500,
-        deratingend: 5000,
+        deratingStart: 6.5,
+        deratingend: 5,
         minoutput: 50,
         tpderatingstart: '',
         thermalprotection: false
-      },
-      rules: {
-        "deratingStart": [
-          { validator: (rule, value, callback) => checkRuler(rule, value, callback, 'deratingStart'), trigger: 'blur' }
-        ],
-        "deratingend": [
-          { validator: (rule, value, callback) => checkRuler(rule, value, callback, 'deratingend'), trigger: 'blur' }
-        ],
-        "minoutput": [
-          { validator: (rule, value, callback) => checkRuler(rule, value, callback, 'minoutput'), trigger: 'blur' }
-        ]
       }
     }
   },
   watch: {
-    /* nfcInfo: {
-      handler(val) {
-        this.initInfo(val)
-      },
-      immediate: true,
-      deep: true
-    }, */
     info: {
       handler() {
-        console.log('infosss')
         this.$nextTick(() => {
           this.$refs['LineEchartsVueRef'].initChart()
         })
       },
       deep: true
 
+    },
+    readTag() {
+      this.initInfo(this.nfcInfo)
     }
   },
-  updated() {
+  activated() {
+    this.initInfo(this.nfcInfo)
     EventBus.$off('constantLumenInit')
     EventBus.$once('constantLumenInit', (data) => {
       this.initInfo(data)
-
     })
-  },
-  mounted() {
-    this.initInfo(this.nfcInfo)
   },
   methods: {
     inputChange(val) {
-      if (!Object.keys(this.nfcInfo).length) return
+      if (!Object.keys(this.nfcInfo).length || val.deratingStart < 0 || val.deratingend < 0 || val.minoutput < 0) return
       const data = this.nfcInfo
       if (val.deratingStart) data.params.tpderatingstart = int2hex(val.deratingStart, 8)
       if (val.deratingend) data.params.tpderatingend = int2hex(val.deratingend, 8)
       if (val.minoutput) data.params.tpminoutput = int2hex(val.minoutput, 2)
       data.params.thermalprotectionenabled = val.thermalprotection ? '01' : '00'
       this.$emit('updateInfo', data)
-      this.initInfo(data)
+      this.updateEchart()
+      // this.initInfo(data)
     },
     initInfo(value) {
       const len = Object.keys(value).length
@@ -180,19 +141,82 @@ export default {
     },
     onBlur(e, type) {
       switch (type) {
-        case 'deratingStart':
-          if (e.target.value < 0 || e.target.value == '') this.info.deratingStart = 0
-          if (e.target.value > 4294967295) this.info.deratingStart = 4294967295
+        case 'deratingStart':{
+          let regex = /^[0]+/
+          const newValue = Number(e.target.value.replace(regex,""));
+          this.info.deratingStart = newValue
+          if (newValue < 0 || newValue == '' || newValue < this.info.deratingend) this.info.deratingStart = this.info.deratingend ? this.info.deratingend : 0
+          if (newValue > 100000) this.info.deratingStart = 100000
+          this.inputChange(this.info)
           return
-        case 'deratingend':
-          if (e.target.value < 0 || e.target.value == '') this.info.deratingend = 0
-          if (e.target.value > 4294967295) this.info.deratingend = 4294967295
+        }
+          
+        case 'deratingend':{
+          let regex = /^[0]+/
+          const newValue = Number(e.target.value.replace(regex,""));
+          console.log(newValue,'new')
+          this.info.deratingend = newValue
+          if (newValue > this.info.deratingStart) this.info.deratingend = this.info.deratingStart
+          if (newValue < 0 || newValue == '' || this.info.deratingStart === 0) this.info.deratingend = 0
+          this.inputChange(this.info)
           return
-        case 'minoutput':
-          if (e.target.value < 0 || e.target.value == '') this.info.minoutput = 0
-          if (e.target.value > 100) this.info.minoutput = 100
+        }
+        case 'minoutput':{
+          let regex = /^[0]+/
+          const newValue = e.target.value.replace(regex,"");
+          this.info.minoutput = newValue
+          if (newValue < 0 || newValue == '') this.info.minoutput = 0
+          if (newValue > 100) this.info.minoutput = 100
+          this.inputChange(this.info)
           return
+        }
       }
+    },
+    initRulers(label) {
+      let checkRuler = (rule, value, callback, type) => {
+        const numvalue = Number(value)
+        let text = ''
+        let condition = ''
+        switch (type) {
+          case 'deratingStart':
+            text = `${this.info.deratingend}~100000`
+            condition = numvalue < this.info.deratingend || numvalue > 100000
+            break;
+          case 'deratingend':
+            if(this.info.deratingStart === 0){
+              text = 'Derating End value should not greater than the Start value.'
+            }else{
+              text = `0~${this.info.deratingStart}`
+            }
+            condition = numvalue < 0 || numvalue > this.info.deratingStart
+            console.log(this.info.deratingStart, value,value > this.info.deratingStart,'val')
+            console.log(condition,'condition')
+            break;
+          case 'minoutput':
+            text = "0~100"
+            condition = numvalue < 0 || numvalue > 100
+            break;
+          default:
+            return ''
+        }
+        if (condition || (!value && value !== 0)) {
+          callback(new Error(text));
+        } else {
+          callback();
+        }
+      }
+      let rules = {
+        "deratingStart": [
+          { validator: (rule, value, callback) => checkRuler(rule, value, callback, 'deratingStart'), trigger: 'blur' }
+        ],
+        "deratingend": [
+          { validator: (rule, value, callback) => checkRuler(rule, value, callback, 'deratingend'), trigger: 'blur' }
+        ],
+        "minoutput": [
+          { validator: (rule, value, callback) => checkRuler(rule, value, callback, 'minoutput'), trigger: 'blur' }
+        ]
+      }
+      return rules[label]
     }
   }
 }
@@ -206,6 +230,7 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: auto;
+
   .page-container {
     flex: auto;
     background: #FFFFFF;

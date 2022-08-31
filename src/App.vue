@@ -3,19 +3,41 @@
     <el-header>
       <MainHeader />
     </el-header>
-    <el-container>
+    <el-container v-if="!showTermsLicenses">
       <el-aside>
         <SiderBarItem :itemArr="routes" />
-        <RegionFunc :nfcInfo="nfcInfo" @changeInfo="changeInfo" :crcStatus="crcStatus" />
+        <RegionFunc 
+          :nfcInfo="nfcInfo" 
+          @changeInfo="changeInfo" 
+          :crcStatus="crcStatus" 
+          @changeLoading="changeLoading"
+          @increaseTag="increaseTag"
+        />
       </el-aside>
-      <el-main>
+      <el-main 
+        v-loading="loading"
+        element-loading-background="rgba(0, 0, 0, 0.8)"
+        element-loading-text="loading..."
+        element-loading-spinner="el-icon-loading"
+      >
         <keep-alive>
-          <router-view :nfcInfo="nfcInfo" @updateInfo="updateInfo" ref="ConstantLumenRef" :isLink="isLink"
-            :enable="enable"></router-view>
+          <router-view 
+            :nfcInfo="nfcInfo" 
+            @updateInfo="updateInfo" 
+            ref="ConstantLumenRef" 
+            :isLink="isLink"
+            :enable="enable" 
+            :readTag="readTag"
+          ></router-view>
         </keep-alive>
-
       </el-main>
     </el-container>
+    <!-- <el-container v-else>
+      <TermsLicenses @changeTermsLicenses = "changeTermsLicenses" :linkText = "linkText"/>
+    </el-container> -->
+    <el-footer> 
+      <MainFooter />
+    </el-footer>
   </el-container>
 </template>
 
@@ -23,6 +45,8 @@
 import SiderBarItem from "./components/SiderBarItem.vue";
 import RegionFunc from "@/components/RegionFunc.vue";
 import MainHeader from "./components/MainHeader.vue"
+import MainFooter from "./components/MainFooter.vue"
+// import TermsLicenses from "./components/TermsLicenses.vue";
 import { routes } from "./router/index";
 import { EventBus } from "@/utils/eventBus.js"
 export default {
@@ -31,14 +55,22 @@ export default {
     // HelloWorld
     SiderBarItem,
     RegionFunc,
-    MainHeader
-  },
+    MainHeader,
+    MainFooter,
+},
   data() {
     return {
       routes,
       nfcInfo: {},
       isLink: false,
       crcStatus: false,
+      showTermsLicenses: false,
+      loading:false,
+      readTag:0,
+      linkText: {
+        level1:'',
+        level2:''
+      },
       enable: {
         endoflife: true,
         softstart: true,
@@ -50,22 +82,57 @@ export default {
       }
     };
   },
-  watch: {
-
-  },
   methods: {
     changeInfo(value) {
-      console.log(value, 'infovlaue')
-      this.nfcInfo = value.data
       this.isLink = value.status == 0 ? true : false
-      this.crcStatus = value.crcStatus
-      this.enable = value.enable
+      if (value.status === 0) {
+        this.nfcInfo = value.data
+        this.crcStatus = value.crcStatus
+        this.enable = value.enable
+        const nowPath = this.$route.path
+        console.log(value,'val')
+        console.log(nowPath,'newPath')
+        this.routes.map(ele=>{
+          ele.hidden = false
+          
+          if(ele.name === "Dimming"){ 
+            ele.hidden = !value.enable.diming
+            if(nowPath == '/dimming' && !value.enable.diming){
+              this.$router.push({path:'/device-information'})
+            }
+          }
+          if(ele.name === "Thermal Protection"){
+            ele.hidden = !value.enable.thermalprotection  
+            if(nowPath =='/thermal-protection' && !value.enable.thermalprotection){
+              this.$router.push({path:'/device-information'})
+            }
+          }
+          if(ele.name === "Constant Lumen"){
+            ele.hidden = !value.enable.constantlumen
+            if(nowPath == '/constant-lumen' && !value.enable.constantlumen){
+              this.$router.push({path:'/device-information'})
+            }
+          }
+          if(!ele.name) ele.hidden = true
+        })
+      }
       EventBus.$emit('constantLumenInit', this.nfcInfo)
     },
     updateInfo(value) {
-      console.log(value, 'appvalue')
       this.nfcInfo = value
+    },
+    changeLoading(bol){
+      this.loading = bol
+    },
+    increaseTag(){
+      this.readTag += 1
     }
+    /* changeTermsLicenses(linkResult){
+      this.showTermsLicenses = linkResult.show
+      if(!linkResult.show) return
+      this.linkText.level1 = this.$router.history.current.name
+      this.linkText.level2 = linkResult.linkValue
+    } */
   }
 };
 </script>
@@ -77,7 +144,7 @@ export default {
 }
 
 .el-container {
-  height: calc(100% - 60px);
+  height: calc(100% - 128px);
   font-size: 16px;
   font-family: Arial;
   color: #000000;
@@ -93,6 +160,14 @@ export default {
   .el-main {
     padding: 10px;
     background: #dddddd;
+    .el-loading-spinner{
+      .el-icon-loading,.el-loading-text{
+        color:#ff6600
+      }
+    }
+  }
+  .el-footer{
+    background: #F2F2F2;
   }
 }
 </style>

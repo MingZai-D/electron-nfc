@@ -1,6 +1,6 @@
 {
-  "name": "electron-vue-nfc",
-  "version": "0.1.0",
+  "name": "ledvance-taptronic",
+  "version": "1.0.4",
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",

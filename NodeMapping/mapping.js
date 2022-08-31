@@ -1,5 +1,4 @@
 
-
 export const Template = {
   "Company Code": "01",
   "driver type": "FF",
@@ -20,7 +19,9 @@ export const Template = {
       "minvoltage": 1
     },
     "minpower": 1,
-    "testmode": false,
+    "testmode": "00",
+    "faultcode": "000000",
+    "faultcodecrc": "000000",
     "operationcurrent": "FFFF",
     "operationvoltage": "FFFF",
     "operationpower": "FFFF",
@@ -73,9 +74,26 @@ export const modeList = {
   }
 }
 
+export const faultDescriptionList = {
+  "0": "Read Fault code failed, please try read the tag again",
+  "1": "Electric leakage",
+  "2": "Short-Circuit protection",
+  "3": "Luminaire temperature is too high, Thermal protection is luanch",
+  "4": "Wrong thermistor(detect wrong thermal resistor value at 25℃",
+  "5": "Wrong current value, the current value you set is out of range",
+  "6": "Overloaded, requested power exceed the maximum power value of driver.",
+  "7": "Wrong dimming level value, dimming level value set is not in the range",
+  "8": "Wrong percentage value on constant lumen function, cause overload issue",
+  "9": "Driver is protected, beceause the inner componet temperature  is too high",
+  "10": "Used wrong App or Software to read and write the data from driver",
+  "11": "External Supply Undervoltage",
+  "12": "External Supply Overvoltage",
+  "13": "Open circuit on output loop"
+}
+
 
 const {
-  exec,
+  exec
 } = window.require('child_process')
 
 function ReadCallbackfromNFC(err, stdout, stderr) {
@@ -140,7 +158,12 @@ function ReadCallbackfromNFC(err, stdout, stderr) {
   Template.params.dimingenabled = tags[24].substring(0, 2)
   Template.params.dimingleel = tags[25].substring(0, 2)
   Template.params.crc = tags[26].substring(0, 2)
-  console.log(Template, 'Template')
+  Template.params.faultcode = tags[31].substring(0,6)
+  Template.params.faultcodecrc = tags[31].substring(6,8)
+
+  Template.params.faultcodegentercrc = GenerateFaultCodeCRC([tags[31].substring(0,2),tags[31].substring(2,4),tags[31].substring(4,6)])
+  Template.params.promptCode = tags[31].substring(4,6)
+  console.log(Template, 'Template', Template.params.crc, 'crc')
   // CompositeWriteParam()
   // WriteNFCAll()
 }
@@ -155,8 +178,8 @@ export const trim2Two = function (value) {
 
 }
 
-export const CompositeWriteParam = function (Template, writeA3) {
-  console.log(writeA3, Template, 'Templatesss')
+export const CompositeWriteParam = function (Template, writeA2) {
+  console.log(writeA2, Template, 'Templatesss')
   var writeList = [];
   writeList.length = 0
   var start = 32 - 8 //32 对应的是08 blob，然后顺序往下
@@ -172,12 +195,13 @@ export const CompositeWriteParam = function (Template, writeA3) {
    writeList.push( (start + 6).toString() + Template.mincurrent + Template.minvoltage) //4+4 BIT
    writeList.push( (start + 7).toString() + Template.minpower + FFholder4)  // 4 BIT*/
 
-  if (writeA3 == true) {
+  if (writeA2 == true) {
     start = 0;
-    writeList.push('08' + Template.params.testmode + FFholder6) // 2 BIT
+    writeList.push('08' + Template.params.testmode + FFholder6)
+    // 2 BIT
     writeList.push('09' + Template.params.operationcurrent + Template.params.operationvoltage) //4+4 BIT
   } else {
-    writeList.push((start + 8).toString() + Template.params.testmode + FFholder6) // 2 BIT
+    writeList.push((start + 8).toString() + Template.params.testmode + FFholder6)
     writeList.push((start + 9).toString() + Template.params.operationcurrent + Template.params.operationvoltage) //4+4 BIT
   }
 
@@ -202,20 +226,50 @@ export const CompositeWriteParam = function (Template, writeA3) {
 
   writeList.push((start + 24).toString() + Template.params.dimingenabled + FFholder6)
   writeList.push((start + 25).toString() + Template.params.dimingleel + FFholder6)
-  Template.params.crc = GenerateCRC()
+  Template.params.crc = GenerateCRC(Template)
   writeList.push((start + 26).toString() + Template.params.crc + FFholder6)
-  console.log(writeList, 'writeList')
   let list = []
   writeList.forEach(function (item) {
     list.push(item.toUpperCase())
   })
-  return WriteNFCAll(writeList)
+  return WriteNFCAll(writeList, Template, writeA2)
 }
 
 function writeCallbackfromNFC(err, stdout, stderr) {
   console.log(err, ",", stdout, ",", stderr);
   //if(err.length > =)  error 
 }
+
+export const RedCRC = function (a3 = false) {
+  var block = a3 ? "50" : "26";
+  const path = window.require('path')
+  let exePath = path.resolve('./')
+  return new Promise(resolve => {
+    const lss = exec('callNFC.exe ' + block, {
+      cwd: exePath + "\\NodeMapping"
+    }, ReadCRCCallback) //read from 00 to 31
+    let str = ''
+    lss.stdout.on('data', (data) => {
+      str += data
+    })
+    lss.on('close', (code) => {
+      resolve({
+        code,
+        crc: str.substring(0, 2)
+      })
+    })
+  })
+
+}
+
+export const ReadCRCCallback = function (err, stdout, stderr) {
+  if (err !== null || stderr !== "") {
+    return
+  }
+  console.log(stderr, 'stderr', stdout, stdout.substring(0, 2), 'stdout')
+  // return stdout.substring(0, 2)
+}
+
 
 export const ReadNFCAll = function () {
   const path = window.require('path')
@@ -226,11 +280,13 @@ export const ReadNFCAll = function () {
     }, ReadCallbackfromNFC) //read from 00 to 31
     ls.on('close', (code) => {
       const res = GenerateCRC()
+      console.log(res,Template,'crc')
       let crcStatus = res == Template.params.crc ? false : true
       const enable = EnableDisableFromFeatureDefinition()
+      if (Template["Company Code"] == '00' && Template["driver type"] == '00' && Template["production Week"] == '00') code = 1
       resolve({
         status: code,
-        data: Template,
+        data: JSON.parse(JSON.stringify(Template)),
         crcStatus,
         enable
       })
@@ -239,7 +295,7 @@ export const ReadNFCAll = function () {
 }
 
 
-export const WriteNFCAll = function (writeList) {
+export const WriteNFCAll = function (writeList, Template, writeA2,) {
   const path = window.require('path')
   let exePath = path.resolve('./')
   var comamndparam = ""
@@ -248,7 +304,6 @@ export const WriteNFCAll = function (writeList) {
     comamndparam += writeList[i]
   }
 
-  console.log(comamndparam, writeList.length)
   var command = 'callNFC.exe' + comamndparam
   //command = 'callNFC.exe 0212345678'
   console.log(command)
@@ -257,68 +312,107 @@ export const WriteNFCAll = function (writeList) {
       cwd: exePath + "\\NodeMapping"
     }, writeCallbackfromNFC) //read from 00 to 31
     ls.on('close', (code) => {
-      const res = GenerateCRC()
-      console.log(res, 'CRCres')
-      resolve({
-        status: code,
-        data:Template
+      RedCRC(!writeA2).then(res => {
+        console.log(res, 'writeRes')
+        const CRCres = GenerateCRC(Template)
+        console.log(CRCres,'CRCres')
+        let msg = code === 0 ? 'Next: Power up the driver to activate your new settings' : 'Write failed'
+        if (res.crc != CRCres && code === 0) msg = 'Write crc operation failed'
+        resolve({
+          status: code,
+          msg
+        })
       })
     })
   })
 }
 
-function GenerateCRC() {
+function GenerateCRC( template) {
+  const temp = template ? template : Template
   var CRCModule = require('./CRC');
-  console.log(Template, 'Template')
   var crclist = [
     //0X24-0X27
-    CRCModule.HexStringToInt(Template.params.operationcurrent.substring(0, 2)), CRCModule.HexStringToInt(Template.params.operationcurrent.substring(2, 4)),
-    CRCModule.HexStringToInt(Template.params.operationvoltage.substring(0, 2)), CRCModule.HexStringToInt(Template.params.operationvoltage.substring(2, 4)),
+    CRCModule.HexStringToInt(temp.params.testmode.substring(0, 2)),
+    CRCModule.HexStringToInt(temp.params.operationcurrent.substring(0, 2)), 
+    CRCModule.HexStringToInt(temp.params.operationcurrent.substring(2, 4)),
+    CRCModule.HexStringToInt(temp.params.operationvoltage.substring(0, 2)), 
+    CRCModule.HexStringToInt(temp.params.operationvoltage.substring(2, 4)),
+    CRCModule.HexStringToInt(temp.params.operationpower.substring(0, 2)),
+    CRCModule.HexStringToInt(temp.params.operationpower.substring(2, 4)),
+
     //0x2c
-    CRCModule.HexStringToInt(Template.params.constantlumenenabled.substring(0, 2)),
+    CRCModule.HexStringToInt(temp.params.constantlumenenabled.substring(0, 2)),
     //0x30-0x33
-    CRCModule.HexStringToInt(Template.params.cloutputlevel14[0].substring(0, 2)), CRCModule.HexStringToInt(Template.params.cloutputlevel14[1].substring(0, 2)),
-    CRCModule.HexStringToInt(Template.params.cloutputlevel14[2].substring(0, 2)), CRCModule.HexStringToInt(Template.params.cloutputlevel14[3].substring(0, 2)),
+    CRCModule.HexStringToInt(temp.params.cloutputlevel14[0].substring(0, 2)), 
+    CRCModule.HexStringToInt(temp.params.cloutputlevel14[1].substring(0, 2)),
+    CRCModule.HexStringToInt(temp.params.cloutputlevel14[2].substring(0, 2)), 
+    CRCModule.HexStringToInt(temp.params.cloutputlevel14[3].substring(0, 2)),
     //0x34-0x36
-    CRCModule.HexStringToInt(Template.params.cloutputlevel57[0].substring(0, 2)), CRCModule.HexStringToInt(Template.params.cloutputlevel57[1].substring(0, 2)),
-    CRCModule.HexStringToInt(Template.params.cloutputlevel57[2].substring(0, 2)),
+    CRCModule.HexStringToInt(temp.params.cloutputlevel57[0].substring(0, 2)), 
+    CRCModule.HexStringToInt(temp.params.cloutputlevel57[1].substring(0, 2)),
+    CRCModule.HexStringToInt(temp.params.cloutputlevel57[2].substring(0, 2)),
     //0x38-0x3e
-    CRCModule.HexStringToInt(Template.params.cloperationtime14[0].substring(0, 2)), CRCModule.HexStringToInt(Template.params.cloperationtime14[1].substring(0, 2)),
-    CRCModule.HexStringToInt(Template.params.cloperationtime14[2].substring(0, 2)), CRCModule.HexStringToInt(Template.params.cloperationtime14[3].substring(0, 2)),
-    CRCModule.HexStringToInt(Template.params.cloperationtime57[0].substring(0, 2)), CRCModule.HexStringToInt(Template.params.cloperationtime57[1].substring(0, 2)),
-    CRCModule.HexStringToInt(Template.params.cloperationtime57[2].substring(0, 2)),
+    CRCModule.HexStringToInt(temp.params.cloperationtime14[0].substring(0, 2)), 
+    CRCModule.HexStringToInt(temp.params.cloperationtime14[1].substring(0, 2)),
+    CRCModule.HexStringToInt(temp.params.cloperationtime14[2].substring(0, 2)), 
+    CRCModule.HexStringToInt(temp.params.cloperationtime14[3].substring(0, 2)),
+    CRCModule.HexStringToInt(temp.params.cloperationtime57[0].substring(0, 2)), 
+    CRCModule.HexStringToInt(temp.params.cloperationtime57[1].substring(0, 2)),
+    CRCModule.HexStringToInt(temp.params.cloperationtime57[2].substring(0, 2)),
 
     //0x40,44,48,4c,50
-    CRCModule.HexStringToInt(Template.params.endoflifeenabled.substring(0, 2)),
-    CRCModule.HexStringToInt(Template.params.endoflifeindication.substring(0, 2)),
-    CRCModule.HexStringToInt(Template.params.softstartenabled.substring(0, 2)),
-    CRCModule.HexStringToInt(Template.params.dimtooff.substring(0, 2)),
-    CRCModule.HexStringToInt(Template.params.thermalprotectionenabled.substring(0, 2)),
+    CRCModule.HexStringToInt(temp.params.endoflifeenabled.substring(0, 2)),
+    CRCModule.HexStringToInt(temp.params.endoflifeindication.substring(0, 2)),
+    CRCModule.HexStringToInt(temp.params.softstartenabled.substring(0, 2)),
+    CRCModule.HexStringToInt(temp.params.dimtooff.substring(0, 2)),
+    CRCModule.HexStringToInt(temp.params.thermalprotectionenabled.substring(0, 2)),
 
     //0X53-57
-    CRCModule.HexStringToInt(Template.params.tpderatingstart.substring(0, 2)), CRCModule.HexStringToInt(Template.params.tpderatingstart.substring(2, 4)),
-    CRCModule.HexStringToInt(Template.params.tpderatingstart.substring(4, 6)), CRCModule.HexStringToInt(Template.params.tpderatingstart.substring(6, 8)),
+    CRCModule.HexStringToInt(temp.params.tpderatingstart.substring(0, 2)), 
+    CRCModule.HexStringToInt(temp.params.tpderatingstart.substring(2, 4)),
+    CRCModule.HexStringToInt(temp.params.tpderatingstart.substring(4, 6)), 
+    CRCModule.HexStringToInt(temp.params.tpderatingstart.substring(6, 8)),
 
     //0X58-5B
-    CRCModule.HexStringToInt(Template.params.tpderatingend.substring(0, 2)), CRCModule.HexStringToInt(Template.params.tpderatingend.substring(2, 4)),
-    CRCModule.HexStringToInt(Template.params.tpderatingend.substring(4, 6)), CRCModule.HexStringToInt(Template.params.tpderatingend.substring(6, 8)),
+    CRCModule.HexStringToInt(temp.params.tpderatingend.substring(0, 2)), 
+    CRCModule.HexStringToInt(temp.params.tpderatingend.substring(2, 4)),
+    CRCModule.HexStringToInt(temp.params.tpderatingend.substring(4, 6)), 
+    CRCModule.HexStringToInt(temp.params.tpderatingend.substring(6, 8)),
 
     //0X5C,60,64
-    CRCModule.HexStringToInt(Template.params.tpminoutput.substring(0, 2)),
-    CRCModule.HexStringToInt(Template.params.dimingenabled.substring(0, 2)),
-    CRCModule.HexStringToInt(Template.params.dimingleel.substring(0, 2)),
-  ]
-  console.log(crclist)
+    CRCModule.HexStringToInt(temp.params.tpminoutput.substring(0, 2)),
+    CRCModule.HexStringToInt(temp.params.dimingenabled.substring(0, 2)),
+    CRCModule.HexStringToInt(temp.params.dimingleel.substring(0, 2)),
 
+  ]
+  console.log(crclist, 'crclist')
   var crc8 = new CRCModule.CRC8(0x8c, 0xff)
 
   var checksum = crc8.checksum(crclist)
-  console.log(checksum, 'checksum')
   var crc_value = checksum.toString(16).toUpperCase()
   if (crc_value.length == 1) {
     crc_value = "0" + crc_value
   }
   console.log(crc_value, 'crc_value.substring')
+  crc_value = crc_value.substring(0, 2)
+  return crc_value
+}
+
+function GenerateFaultCodeCRC(list){
+  console.log(list,'list')
+  var CRCModule = require('./CRC');
+  var crcList = [
+    CRCModule.HexStringToInt(list[0]),
+    CRCModule.HexStringToInt(list[1]),
+    CRCModule.HexStringToInt(list[2])
+  ]
+  var crc8 = new CRCModule.CRC8(0x8c, 0xff)
+
+  var checksum = crc8.checksum(crcList)
+  var crc_value = checksum.toString(16).toUpperCase()
+  if (crc_value.length == 1) {
+    crc_value = "0" + crc_value
+  }
   crc_value = crc_value.substring(0, 2)
   return crc_value
 }
@@ -333,7 +427,6 @@ export const EnableDisableFromFeatureDefinition = function () {
   var dimtooff_enable = (def >>> 4 & 1) == 1 ? true : false
   var thermalprotect_enable = (def >>> 5 & 1) == 1 ? true : false
   var dimming_enable = (def >>> 6 & 1) == 1 ? true : false
-  console.log(driverparam_enable, constantlumen_enable, endoflife_enable, softstart_enable, dimtooff_enable, thermalprotect_enable, dimming_enable)
   const enable = {
     endoflife: endoflife_enable,
     softstart: softstart_enable,

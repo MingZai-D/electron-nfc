@@ -17,7 +17,7 @@
             </el-form-item>
             <el-form-item label="Op Current" prop="opcurrent">
               <el-input v-model="info.opcurrent" min="0" max="65536" type="number" :disabled="!enable['opcurrent']"
-                @input="checkInput('opcurrent', 1)" @blur="onBlur($event,'opcurrent')">
+                @input="checkInput('opcurrent', 1)" @blur="onBlur($event, 'opcurrent')">
                 <span slot="suffix">mA</span>
               </el-input>
             </el-form-item>
@@ -29,40 +29,44 @@
           </el-form>
         </div>
       </div>
-      <div class="setting-container">
-        <div :class="['setting-content', !enable['endoflife'] ? 'ban-click' : '']">
-          <div class="setting-title" @click="changeBox('endoflife')">
-            <img src="@/assets/images/icon_select.png" v-if="info.endoflife" />
+      <div style="display: inline-block">
+        <div v-show="enable['dimtooff']" :class="['setting-status-content', !enable['dimtooff'] ? 'ban-click' : '']"
+          @click="changeBox('dimtooff')">
+          <img src="@/assets/images/icon_select.png" v-if="info.dimtooff" />
+          <span class="circle" v-else />
+          Dim to Off
+        </div>
+      </div>
+      <div v-show="enable['softstart']" :class="['setting-container', !enable['softstart'] ? 'ban-click' : '']">
+        <div style="display: inline-block">
+          <div class="setting-status-content" @click="changeBox('softstart')">
+            <img src="@/assets/images/icon_select.png" v-if="info.softstart" />
             <span class="circle" v-else />
-            End of Life
+            Soft Start
+          </div>
+        </div>
+      </div>
+      <div class="setting-container">
+        <div v-show="enable['endoflife']" :class="['setting-content', !enable['endoflife'] ? 'ban-click' : '']">
+          <div style="display: inline-block">
+            <div class="setting-title" @click="changeBox('endoflife')">
+              <img src="@/assets/images/icon_select.png" v-if="info.endoflife" />
+              <span class="circle" v-else />
+              End of Life
+            </div>
           </div>
           <div class="lable-container">
             <el-form label-width="120px" :rules="rules" :model="info" ref="formRef2">
               <el-form-item label="Driver Life" prop="driverlife">
-                <el-input v-model="info.driverlife" min="3" max="100" type="number" :disabled="!enable['endoflife'] ? !enable['endoflife'] : info.endoflife"
-                  class="suffix-icon" @input="checkInput('driverlife', 2)" @blur="onBlur($event,'driverlife')">
+                <el-input v-model="info.driverlife" min="3" max="100" type="number"
+                  :disabled="!enable['endoflife'] ? !enable['endoflife'] : !info.endoflife" class="suffix-icon"
+                  @input="checkInput('driverlife', 2)" @blur="onBlur($event, 'driverlife')">
                   <span slot="suffix">Kh</span>
                 </el-input>
               </el-form-item>
             </el-form>
-            <!-- <label>Driver Life</label>
-            <el-input v-model="info.driverlife" min="3" max="100" type="number" :disabled="!enable['endoflife']" class="suffix-icon" @input="checkInput('driverlife')">
-              <span slot="suffix">Kh</span>
-            </el-input> -->
           </div>
         </div>
-      </div>
-      <div :class="['setting-container', !enable['softstart'] ? 'ban-click' : '']">
-        <div class="setting-status-content" @click="changeBox('softstart')">
-          <img src="@/assets/images/icon_select.png" v-if="info.softstart" />
-          <span class="circle" v-else />
-          Soft Start
-        </div>
-      </div>
-      <div :class="['setting-status-content', !enable['dimtooff'] ? 'ban-click' : '']" @click="changeBox('dimtooff')">
-        <img src="@/assets/images/icon_select.png" v-if="info.dimtooff" />
-        <span class="circle" v-else />
-        Dim to Off
       </div>
     </div>
   </div>
@@ -75,30 +79,6 @@ import { int2hex } from "../../utils/method"
 export default {
   props: ['nfcInfo', 'enable'],
   data() {
-    let checkRuler = (rule, value, callback, type) => {
-      let text = ''
-      let condition = ''
-      switch (type) {
-        case 'opcurrent':
-          text = '范围为0~65536'
-          condition = value < 0 || value > 65536
-          break;
-        case 'driverlife':
-          text = "范围为3~100"
-          condition = value < 3 || value > 100
-          break;
-        default:
-          return ''
-      }
-      if (!value && value != 0) {
-        return callback(new Error('请输入值'));
-      }
-      if (condition) {
-        callback(new Error(text));
-      } else {
-        callback();
-      }
-    }
     return {
       info: {
         maxcurrent: '',
@@ -112,16 +92,16 @@ export default {
       },
       rules: {
         "opcurrent": [
-          { validator: (rule, value, callback) => checkRuler(rule, value, callback, 'opcurrent'), trigger: 'blur' }
+          { validator: (rule, value, callback) => this.checkRuler(rule, value, callback, 'opcurrent'), trigger: 'blur' }
         ],
         "outputvoltage": [
-          { validator: (rule, value, callback) => checkRuler(rule, value, callback, 'outputvoltage'), trigger: 'blur' }
+          { validator: (rule, value, callback) => this.checkRuler(rule, value, callback, 'outputvoltage'), trigger: 'blur' }
         ],
         "minoutput": [
-          { validator: (rule, value, callback) => checkRuler(rule, value, callback, 'minoutput'), trigger: 'blur' }
+          { validator: (rule, value, callback) => this.checkRuler(rule, value, callback, 'minoutput'), trigger: 'blur' }
         ],
         "driverlife": [
-          { validator: (rule, value, callback) => checkRuler(rule, value, callback, 'driverlife'), trigger: 'blur' }
+          { validator: (rule, value, callback) => this.checkRuler(rule, value, callback, 'driverlife'), trigger: 'blur' }
         ]
       }
     }
@@ -147,7 +127,7 @@ export default {
   methods: {
     inputChange(val) {
       const data = this.nfcInfo
-      if (!Object.keys(data).length) return
+      if (!Object.keys(data).length || val.opcurrent < 0 || val.driverlife < 0) return
       if (val.opcurrent) data.params.operationcurrent = int2hex(val.opcurrent, 4)
       if (val.driverlife) data.params.endoflifeindication = int2hex(val.driverlife, 2)
       data.params.endoflifeenabled = val.endoflife ? '01' : '00'
@@ -210,16 +190,46 @@ export default {
 
       this.inputChange(this.info)
     },
-    onBlur(e,type){
-      switch(type){
+    onBlur(e, type) {
+      switch (type) {
+        case 'opcurrent':{
+          let regex = /^[0]+/
+          const newValue = Number(e.target.value.replace(regex,""));
+          this.info.opcurrent = newValue
+          if (newValue < this.info.mincurrent || newValue == '') this.info.opcurrent = this.info.mincurrent
+          if (newValue > this.info.maxcurrent) this.info.opcurrent = this.info.maxcurrent
+          return
+        }
+        case 'driverlife':{
+          let regex = /^[0]+/
+          const newValue = Number(e.target.value.replace(regex,""));
+          this.info.driverlife = newValue
+          if (newValue < 3 || newValue == '') this.info.driverlife = 3
+          if (newValue > 100) this.info.driverlife = 100
+          return
+        }
+      }
+    },
+    checkRuler(rule, value, callback, type) {
+      const info = this.info
+      let text = ''
+      let condition = ''
+      switch (type) {
         case 'opcurrent':
-          if(e.target.value < 0 || e.target.value == '') this.info.opcurrent = 0
-          if(e.target.value > 65536) this.info.opcurrent = 65536
-          return
+          text = `${info.mincurrent} ~ ${info.maxcurrent}`
+          condition = value < info.mincurrent || value > info.maxcurrent
+          break;
         case 'driverlife':
-          if(e.target.value < 3 || e.target.value == '') this.info.driverlife = 3
-          if(e.target.value > 100) this.info.driverlife = 100
-          return
+          text = "3~100"
+          condition = value < 3 || value > 100
+          break;
+        default:
+          return ''
+      }
+      if (condition || (!value && value !== 0)) {
+        callback(new Error(text));
+      } else {
+        callback();
       }
     }
   }

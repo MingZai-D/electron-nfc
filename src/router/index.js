@@ -6,27 +6,30 @@ export const routes = [{
   name:'Device Information',
   component:()=> import('../page/DeviceInformation/DeviceInformation.vue')
 },
-  { 
+{ 
   path:'/current-setting',
   name:'Current Setting',
+  hidden:true,
   component:()=> import('../page/CurrentSetting/CurrentSetting.vue')
-}, 
-{ 
-  path:'/thermal-protection',
-  name:'Thermal Protection',
-  component:()=> import('../page/ThermalProtection/ThermalProtection.vue')
 },
 { 
   path:'/dimming',
   name:'Dimming',
+  hidden:true,
   component:()=> import('../page/Dimming/Dimming.vue')
+}, 
+{ 
+  path:'/thermal-protection',
+  name:'Thermal Protection',
+  hidden:true,
+  component:()=> import('../page/ThermalProtection/ThermalProtection.vue')
 },
 { 
   path:'/constant-lumen',
   name:'Constant Lumen',
+  hidden:true,
   component:()=> import('../page/ConstantLumen/ConstantLumen.vue')
 },
-
 {path: '/',hidden:true, redirect: {name:'Device Information'}},
 ]
 
