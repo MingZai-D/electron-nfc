@@ -93,7 +93,8 @@ export const faultDescriptionList = {
 
 
 const {
-  exec
+  exec,
+  execFile
 } = window.require('child_process')
 
 function ReadCallbackfromNFC(err, stdout, stderr) {
@@ -270,6 +271,18 @@ export const ReadCRCCallback = function (err, stdout, stderr) {
   // return stdout.substring(0, 2)
 }
 
+export const DraverCheck = function(){
+  const path = window.require('path')
+  let exePath = path.resolve('./')
+  return new Promise(resolve => {
+    const url = exePath + '\\NodeMapping\\obiddravercheck.exe'
+    const ls = execFile(url)
+    ls.on('close', (code)=>{
+      console.log(code,'code')
+      resolve(code)
+    })
+  })
+}
 
 export const ReadNFCAll = function () {
   const path = window.require('path')

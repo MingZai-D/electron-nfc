@@ -26,7 +26,7 @@
 
 <script>
 import { Message } from "element-ui"
-import { ReadNFCAll, CompositeWriteParam, faultDescriptionList } from "../../NodeMapping/mapping"
+import { ReadNFCAll, CompositeWriteParam, faultDescriptionList, DraverCheck } from "../../NodeMapping/mapping"
 import { hex2int } from "../utils/method"
 // const remote = require('electron').remote
 export default {
@@ -45,6 +45,9 @@ export default {
   },
   methods: {
     onLink() {
+      DraverCheck().then(res=>{
+        console.log(res,'111')
+      })
       if (this.onWriting) return
       this.onReading = true
       if (this.timer) {
